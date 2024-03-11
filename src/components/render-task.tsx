@@ -1,18 +1,10 @@
-import {
-  Button,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import React from "react";
 import { DummyData } from "../screen/TodoScreen";
 
 type Props = {};
 
-const RenderTask = ({ data }: { data: DummyData[] }) => {
+const RenderTask = ({ data }: { data: DummyData[] | undefined }) => {
   return (
     <View style={{ marginTop: 16 }}>
       <Text style={{ fontSize: 24, textAlign: "center" }}>Your Task</Text>
@@ -37,6 +29,7 @@ const RenderItem = ({ item, index }: { item: DummyData; index: number }) => {
         borderRadius: 10,
         justifyContent: "space-between",
         alignItems: "center",
+        marginTop: 16,
       }}
     >
       <Image

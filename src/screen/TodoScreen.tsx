@@ -8,34 +8,28 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import RenderTask from "../components/render-task";
 
 type Props = {};
 
 export type DummyData = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
+  id: string | undefined;
+  title: string | undefined;
+  description: string | undefined;
+  image: string | undefined;
 };
-
-export const dummyData: DummyData[] = [
-  {
-    id: "01",
-    title: "First Task",
-    description: "First Desctiption",
-    image:
-      "file:///data/user/0/host.exp.exponent/cache/ExperienceData/%2540anonymous%252Frn-todolist-e5155bc3-4dae-4e33-9c82-aee58bcae27b/ImagePicker/36514268-076f-43e1-8220-9c659d0e00f7.jpeg",
-  },
-];
 
 const TodoScreen = (props: Props) => {
   const [image, setImage] = useState<string | undefined>();
+  const [title, setTitle] = useState<string | undefined>();
+  const [description, setDescription] = useState<string | undefined>();
+  const [data, setData] = useState<DummyData[]>();
 
+  //   select image
   const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.All,
       allowsEditing: true,
@@ -43,12 +37,72 @@ const TodoScreen = (props: Props) => {
       quality: 1,
     });
 
-    console.log(result);
-
     if (!result.canceled) {
       setImage(result.assets[0].uri);
     }
   };
+
+  // get data
+  const loadData = async () => {
+    try {
+      const savedData = await AsyncStorage.getItem("todo-data");
+      if (savedData !== null) {
+        setData(JSON.parse(savedData));
+      }
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
+  };
+
+  //   Menyimpan data
+  const saveData = async () => {
+    // mengambil value dari state
+    let value: DummyData = {
+      id: Date.now().toString(),
+      title: title,
+      description: description,
+      image: image,
+    };
+
+    try {
+      // get data
+      let existingData = await AsyncStorage.getItem("todo-data");
+      console.log(existingData);
+      if (existingData != null) {
+        // ubah string
+        let parsedData = JSON.parse(existingData);
+
+        if (!existingData) return;
+        // masukan ke type
+        const convert: DummyData[] = parsedData;
+        // tambahkan data
+        convert.push(value);
+        await AsyncStorage.setItem("todo-data", JSON.stringify(convert));
+      } else {
+        await AsyncStorage.setItem("todo-data", JSON.stringify([value]));
+      }
+      loadData();
+    } catch (e) {
+      console.log("Error", e);
+    }
+
+    setImage("");
+    setTitle("");
+    setDescription("");
+  };
+
+  const clearData = async () => {
+    try {
+      await AsyncStorage.clear();
+      setData([]);
+    } catch (error) {
+      console.error("Error clearing data:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   return (
     <View style={{ padding: 8, marginHorizontal: 16, marginVertical: 16 }}>
@@ -63,6 +117,8 @@ const TodoScreen = (props: Props) => {
           paddingVertical: 6,
           paddingHorizontal: 16,
         }}
+        value={title}
+        onChangeText={(text) => setTitle(text)}
         placeholder="Task Title..."
       />
       <TextInput
@@ -76,8 +132,8 @@ const TodoScreen = (props: Props) => {
         }}
         placeholder="Task Description..."
         multiline={true}
-        // onChangeText={handleTextChange}
-        // value={text}
+        value={description}
+        onChangeText={(text) => setDescription(text)}
       />
 
       <TouchableOpacity
@@ -110,14 +166,20 @@ const TodoScreen = (props: Props) => {
           paddingVertical: 8,
           marginTop: 16,
         }}
+        onPress={saveData}
       >
         <Text style={{ color: "#FFF" }}>Add</Text>
       </TouchableOpacity>
-      <RenderTask data={dummyData} />
+      <TouchableOpacity onPress={clearData}>
+        <Text>Clear All</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => console.log(data)}>
+        <Text>Log Data</Text>
+      </TouchableOpacity>
+
+      <RenderTask data={data} />
     </View>
   );
 };
 
 export default TodoScreen;
-
-const styles = StyleSheet.create({});
