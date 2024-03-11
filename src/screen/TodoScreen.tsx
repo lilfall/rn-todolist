@@ -1,8 +1,6 @@
 import {
-  Button,
   FlatList,
   Image,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,7 +9,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
-import RenderTask from "../components/render-task";
 
 type Props = {};
 
@@ -27,6 +24,8 @@ const TodoScreen = (props: Props) => {
   const [title, setTitle] = useState<string | undefined>();
   const [description, setDescription] = useState<string | undefined>();
   const [data, setData] = useState<DummyData[]>();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedData, setSelectedData] = useState<DummyData>();
 
   //   select image
   const pickImage = async () => {
@@ -67,7 +66,7 @@ const TodoScreen = (props: Props) => {
     try {
       // get data
       let existingData = await AsyncStorage.getItem("todo-data");
-      console.log(existingData);
+
       if (existingData != null) {
         // ubah string
         let parsedData = JSON.parse(existingData);
@@ -91,6 +90,7 @@ const TodoScreen = (props: Props) => {
     setDescription("");
   };
 
+  //   clear all data
   const clearData = async () => {
     try {
       await AsyncStorage.clear();
@@ -100,9 +100,84 @@ const TodoScreen = (props: Props) => {
     }
   };
 
+  //   delete data
+  const deleteData = async (id: string) => {
+    const filteredData = data?.filter((item) => item.id !== id);
+    await AsyncStorage.setItem("todo-data", JSON.stringify(filteredData));
+    setData(filteredData);
+  };
+
+  //   edit data
+  const editData = async (item: DummyData) => {
+    setIsEditMode(true);
+    setTitle(item.title);
+    setDescription(item.description);
+    setImage(item.image);
+    setSelectedData(item);
+  };
+
+  const updateData = async () => {
+    const updatedData = data
+      ?.map((item) => {
+        if (item.id === selectedData?.id) {
+          return { ...item, title, description, image };
+        }
+        return item;
+      })
+      .filter(Boolean);
+
+    await AsyncStorage.setItem("todo-data", JSON.stringify(updatedData));
+    console.log(updatedData);
+    loadData();
+    setIsEditMode(false);
+    setImage("");
+    setTitle("");
+    setDescription("");
+    setSelectedData(undefined);
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  const RenderItem = ({ item, index }: { item: DummyData; index: number }) => {
+    return (
+      <View
+        key={index}
+        style={{
+          flex: 1,
+          flexDirection: "row",
+          gap: 4,
+          padding: 4,
+          borderWidth: 1,
+          borderColor: "#CCC",
+          borderRadius: 10,
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: 16,
+        }}
+      >
+        {item.image != null && (
+          <Image
+            source={{ uri: item.image }}
+            style={{ width: 50, height: 50, borderRadius: 5 }}
+          />
+        )}
+        <View>
+          <Text style={{ fontWeight: "800", fontSize: 16 }}>{item.title}</Text>
+          <Text style={{ fontSize: 12 }}>{item.description}</Text>
+        </View>
+        <View style={{ paddingRight: 8 }}>
+          <TouchableOpacity onPress={() => editData(item)}>
+            <Text>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => deleteData(item.id ? item.id : "")}>
+            <Text>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={{ padding: 8, marginHorizontal: 16, marginVertical: 16 }}>
@@ -158,18 +233,34 @@ const TodoScreen = (props: Props) => {
         )}
       </View>
 
-      <TouchableOpacity
-        style={{
-          backgroundColor: "#222",
-          borderRadius: 10,
-          alignItems: "center",
-          paddingVertical: 8,
-          marginTop: 16,
-        }}
-        onPress={saveData}
-      >
-        <Text style={{ color: "#FFF" }}>Add</Text>
-      </TouchableOpacity>
+      {!isEditMode ? (
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#222",
+            borderRadius: 10,
+            alignItems: "center",
+            paddingVertical: 8,
+            marginTop: 16,
+          }}
+          onPress={saveData}
+        >
+          <Text style={{ color: "#FFF" }}>Add</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#222",
+            borderRadius: 10,
+            alignItems: "center",
+            paddingVertical: 8,
+            marginTop: 16,
+          }}
+          onPress={updateData}
+        >
+          <Text style={{ color: "#FFF" }}>Save</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity onPress={clearData}>
         <Text>Clear All</Text>
       </TouchableOpacity>
@@ -177,7 +268,20 @@ const TodoScreen = (props: Props) => {
         <Text>Log Data</Text>
       </TouchableOpacity>
 
-      <RenderTask data={data} />
+      {!isEditMode && (
+        <View style={{ marginTop: 16 }}>
+          <Text style={{ fontSize: 24, textAlign: "center" }}>Your Task</Text>
+          {data && data.length > 0 ? (
+            <FlatList
+              style={{ marginTop: 16 }}
+              data={data}
+              renderItem={RenderItem}
+            />
+          ) : (
+            <Text>Add Data First</Text>
+          )}
+        </View>
+      )}
     </View>
   );
 };
